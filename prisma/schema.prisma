@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model OzonProduct {
+  id                    Int      @id @default(autoincrement())
+  ozonProductId          String?  @unique @map("product_id")
+  sku                   String?
+  offerId               String?  @unique @map("offer_id")
+  barcode               String?
+  name                  String?
+  categoryId            String?  @map("category_id")
+  categoryName          String?  @map("category_name")
+  rawApiJson            Json?    @map("raw_api_json")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@index([offerId])
+  @@index([barcode])
+  @@index([sku])
+  @@map("ozon_products")
+}
+
+model ProductManualInput {
+  id                                      Int      @id @default(autoincrement())
+  ozonProductId                            String?  @map("product_id")
+  offerId                                  String?  @unique @map("offer_id")
+  barcode                                  String?  @unique
+  costPrice                                Float?   @map("cost_price")
+  inboundLogisticsToWarehouse              Float?   @map("inbound_logistics_to_warehouse")
+  baseCommissionPercent                    Float?   @map("base_commission_percent")
+  productVolumeLiters                      Float?   @map("product_volume_liters")
+  freeAcceptance                           Boolean? @map("free_acceptance")
+  buyoutPercent                            Float?   @map("buyout_percent")
+  nonBuyoutPercent                         Float?   @map("non_buyout_percent")
+  returnPercent                            Float?   @map("return_percent")
+  cancelPercent                            Float?   @map("cancel_percent")
+  deliveryToPickupPointCost                Float?   @map("delivery_to_pickup_point_cost")
+  expressCost                              Float?   @map("express_cost")
+  selfPurchaseCost                         Float?   @map("self_purchase_cost")
+  reviewPointsCost                         Float?   @map("review_points_cost")
+  paidStorageCost                          Float?   @map("paid_storage_cost")
+  otherExpenses                            Float?   @map("other_expenses")
+  confirmedOtherExpenses                   Float?   @map("confirmed_other_expenses")
+  totalDrrPercent                          Float?   @map("total_drr_percent")
+  retailPriceWithoutPromo                  Float?   @map("retail_price_without_promo")
+  promoName                                String?  @map("promo_name")
+  promoDiscountPercent                     Float?   @map("promo_discount_percent")
+  coinvestAcquiringPercent                 Float?   @map("coinvest_acquiring_percent")
+  taxUsnIncomePercent                      Float?   @map("tax_usn_income_percent")
+  taxUsnIncomeMinusExpensesPercent         Float?   @map("tax_usn_income_minus_expenses_percent")
+  vatPercent                               Float?   @map("vat_percent")
+  manufacturerLogisticsLeadWeeks           Float?   @map("manufacturer_logistics_lead_weeks")
+  batchQty                                 Float?   @map("batch_qty")
+  soldQtyMonth                             Float?   @map("sold_qty_month")
+  source                                  String   @default("manual")
+  updatedAt                               DateTime @updatedAt @map("updated_at")
+
+  @@index([offerId])
+  @@map("product_manual_inputs")
+}
+
+model OzonFinanceTransaction {
+  id              Int      @id @default(autoincrement())
+  operationId     String   @map("operation_id")
+  operationType   String?  @map("operation_type")
+  operationDate   DateTime @map("operation_date")
+  postingNumber   String?  @map("posting_number")
+  sku             String?
+  offerId         String?  @map("offer_id")
+  ozonProductId    String?  @map("product_id")
+  serviceName     String?  @map("service_name")
+  amount          Float
+  rawApiJson      Json?    @map("raw_api_json")
+
+  @@unique([operationId, serviceName, offerId, sku])
+  @@index([operationDate])
+  @@index([offerId])
+  @@index([postingNumber])
+  @@map("ozon_finance_transactions")
+}
+
+model OzonPosting {
+  id              Int       @id @default(autoincrement())
+  postingNumber   String    @map("posting_number")
+  scheme          String
+  status          String?
+  createdAt       DateTime? @map("created_at")
+  deliveredAt     DateTime? @map("delivered_at")
+  cancelledAt     DateTime? @map("cancelled_at")
+  sku             String?
+  offerId         String?   @map("offer_id")
+  quantity        Int?
+  price           Float?
+  rawApiJson      Json?     @map("raw_api_json")
+
+  @@unique([postingNumber, scheme, offerId, sku])
+  @@index([createdAt])
+  @@index([offerId])
+  @@map("ozon_postings")
+}
+
+model TariffVersion {
+  id             Int          @id @default(autoincrement())
+  name           String
+  effectiveFrom  DateTime?    @map("effective_from")
+  effectiveTo    DateTime?    @map("effective_to")
+  sourceUrl      String?      @map("source_url")
+  rawJson        Json?        @map("raw_json")
+  active         Boolean      @default(false)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  rules          TariffRule[]
+
+  @@index([active])
+  @@map("tariff_versions")
+}
+
+model TariffRule {
+  id                    Int           @id @default(autoincrement())
+  tariffVersionId        Int           @map("tariff_version_id")
+  categoryId            String?       @map("category_id")
+  categoryName          String?       @map("category_name")
+  commissionPercent     Float?        @map("commission_percent")
+  minVolumeLiters       Float?        @map("min_volume_liters")
+  maxVolumeLiters       Float?        @map("max_volume_liters")
+  directLogisticsCost   Float?        @map("direct_logistics_cost")
+  reverseLogisticsCost  Float?        @map("reverse_logistics_cost")
+  acceptanceCost        Float?        @map("acceptance_cost")
+  storageCostPerDay     Float?        @map("storage_cost_per_day")
+  pickupDeliveryCost    Float?        @map("pickup_delivery_cost")
+  nonlocalMarkupRule    Json?         @map("nonlocal_markup_rule")
+  rawJson               Json?         @map("raw_json")
+  version               TariffVersion @relation(fields: [tariffVersionId], references: [id], onDelete: Cascade)
+
+  @@index([tariffVersionId])
+  @@index([categoryId])
+  @@map("tariff_rules")
+}
+
+model CalculationSnapshot {
+  id          Int      @id @default(autoincrement())
+  periodFrom  DateTime @map("period_from")
+  periodTo    DateTime @map("period_to")
+  ozonProductId String?  @map("product_id")
+  offerId     String?  @map("offer_id")
+  inputJson   Json     @map("input_json")
+  resultJson  Json     @map("result_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([periodFrom, periodTo])
+  @@index([offerId])
+  @@map("calculation_snapshots")
+}

@@ -1,8 +1,8 @@
 # Ozon Unit Economics
 
-Локальный калькулятор юнит-экономики Ozon Seller API: товары, цены, остатки, отправления, финансовые операции, ручные расходы, тарифные версии и экспорт итоговой таблицы.
+Local Ozon Seller API unit-economics calculator for products, prices, stocks, postings, finance operations, manual costs, tariff versions, and XLSX export.
 
-## Установка
+## Install
 
 ```bash
 npm install
@@ -12,9 +12,9 @@ npx prisma migrate dev --name init
 npm run dev
 ```
 
-Откройте `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-## Переменные окружения
+## Environment
 
 ```env
 DATABASE_URL="file:./dev.db"
@@ -23,21 +23,21 @@ OZON_API_KEY="..."
 OZON_API_BASE_URL="https://api-seller.ozon.ru"
 ```
 
-API-ключи используются только в серверных route handlers. На фронт они не передаются.
+API keys are used only in server route handlers and are never sent to the frontend.
 
-## Как синхронизировать товары
+## Ozon Sync
 
-На странице `Ozon Unit Economics` нажмите `Синхронизировать товары из Ozon`.
+On the `Ozon Unit Economics` page, click `Sync products from Ozon`.
 
-Слой `src/lib/ozon/client.ts` отправляет запросы с заголовками:
+The client in `src/lib/ozon/client.ts` sends all Ozon requests with:
 
 - `Client-Id`
 - `Api-Key`
 - `Content-Type: application/json`
 
-Поддержаны retry для `429/5xx`, простая защита rate limit, пагинация `last_id` и `offset`, chunking периодов для финансовых операций.
+It supports retry for `429/5xx`, simple rate-limit protection, `last_id` and `offset` pagination, and period chunking for finance operations.
 
-Используемые методы вынесены в `src/lib/ozon/sync.ts`:
+Implemented endpoints are in `src/lib/ozon/sync.ts`:
 
 - `/v3/product/list`
 - `/v3/product/info/list`
@@ -48,33 +48,33 @@ API-ключи используются только в серверных route
 - `/v3/posting/fbs/list`
 - `/v3/finance/transaction/list`
 
-Если API не возвращает поле, значение остается `null`, а source map показывает `missing`.
+If Ozon does not return a field, the value remains `null` and the source map marks it as `missing`.
 
-## Импорт Excel/CSV
+## Manual Excel/CSV Import
 
-На странице калькулятора нажмите `Импорт ручных данных из Excel/CSV`.
+Click `Import manual data from Excel/CSV` on the calculator page.
 
-Основной ключ сопоставления: `Артикул` -> `offer_id`.
-Второй ключ: `ШК` -> `barcode`.
+Primary match key: `Artikul` / `Артикул` -> `offer_id`.
+Secondary match key: `Barcode` / `ШК` -> `barcode`.
 
-Если товар есть в файле, но не найден среди API-товаров, создается manual-only строка. Если найдено несколько совпадений, импорт возвращает конфликт.
+If a row is not found in API products, the app creates a manual-only product row. If several products match, the import returns a conflict.
 
-## Пересчет
+## Calculation
 
-Расчетный модуль находится в:
+Calculation engine:
 
 ```text
 src/lib/unitEconomics/calculateOzonUnitEconomics.ts
 ```
 
-Он принимает normalized product, manual inputs, tariff rule, actual finance aggregates и settings. Возвращает:
+It accepts normalized product data, manual inputs, tariff rule, actual finance aggregates, and settings. It returns:
 
-- все расчетные поля;
-- `warnings`;
-- `errors`;
-- `sourceMap` по каждому полю.
+- all calculated fields;
+- warnings;
+- errors;
+- source map per field.
 
-Настройки:
+Settings:
 
 - `use_actual_finance_data`
 - `tax_mode`
@@ -85,62 +85,59 @@ src/lib/unitEconomics/calculateOzonUnitEconomics.ts
 - `include_reviews_in_total_expenses`
 - `include_self_purchase_in_total_expenses`
 
-## Тарифы
+## Tariffs
 
-Страница `Tariffs` поддерживает импорт JSON/CSV/XLSX, активацию версии и ручное редактирование правил:
+The `Tariffs` page supports JSON/CSV/XLSX import, active version selection, and manual editing for:
 
-- комиссия;
-- прямая логистика;
-- обратная логистика;
-- хранение;
-- приемка;
-- доставка до ПВЗ.
+- commission;
+- direct logistics;
+- reverse logistics;
+- storage;
+- acceptance;
+- pickup-point delivery.
 
-Тарифы не захардкожены в формулах. Активная версия хранится в таблицах `tariff_versions` и `tariff_rules`.
+Tariffs are not hardcoded in formulas. Active tariff versions are stored in `tariff_versions` and `tariff_rules`.
 
-## Источники полей
+## Field Sources
 
-Каждое поле получает один из источников:
+Every field has one source:
 
-- `api` — пришло из Ozon API;
-- `manual` — введено в таблице;
-- `imported` — импортировано из Excel/CSV;
-- `formula` — рассчитано;
-- `missing` — данных нет.
+- `api` - returned by Ozon API;
+- `manual` - edited in the table;
+- `imported` - imported from Excel/CSV;
+- `formula` - calculated;
+- `missing` - not available.
 
-Ручные поля: себестоимость, логистика до склада, базовая комиссия override, объем override, проценты выкупа/возврата/отмен, реклама, налоги, партия и продажи за месяц.
+## Export
 
-API-поля: идентификаторы, название, категория, цена, старая цена, маркетинговая цена/СПП, габариты, вес, остатки, отправления и финансовые начисления, если метод их возвращает.
+Click `Export to Excel` to download all manual and calculated columns as `.xlsx`.
 
-## Экспорт
-
-Кнопка `Экспорт в Excel` выгружает все ручные и расчетные колонки в `.xlsx`.
-
-## Проверки
+## Tests
 
 ```bash
 npm test
 ```
 
-Тесты покрывают:
+Formula tests cover:
 
-- 100% выкуп;
-- 70% выкуп и возвраты;
-- отрицательную прибыль;
-- отсутствие себестоимости;
-- отсутствие объема;
+- 100% buyout;
+- 70% buyout with returns;
+- negative profit;
+- missing cost price;
+- missing volume;
 - `buyout_percent = 0`;
-- скидку в акции;
-- УСН Доходы;
-- УСН Доходы-Расходы;
-- НДС в цене;
-- ROI годовых;
-- отсутствие задвоения расходов.
+- promo discount;
+- USN income;
+- USN income minus expenses;
+- VAT included in price;
+- annual ROI;
+- no double-counted expenses.
 
-## Актуализация API и тарифов
+## API And Tariff Notes
 
-Перед реализацией проверены публичные источники Ozon:
+Public Ozon documentation was checked before implementation:
 
-- Seller API требует `Client-Id` и `Api-Key`, а FBS отправления доступны через `POST /v3/posting/fbs/list`.
-- `POST /v3/finance/transaction/list` возвращает начисления и ограничивает один запрос периодом до 1 месяца.
-- Тарифы меняются по датам действия, поэтому они импортируются как версии, а не хранятся константами в коде.
+- Seller API uses `Client-Id` and `Api-Key`.
+- FBS postings are available through `POST /v3/posting/fbs/list`.
+- `POST /v3/finance/transaction/list` returns accrual operations and should be requested in period chunks.
+- Ozon tariffs change by effective dates, so tariffs are imported as versions instead of being hardcoded.

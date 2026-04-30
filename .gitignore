@@ -1,8 +1,12 @@
 node_modules
 .next
+out
 dist
 coverage
+*.tsbuildinfo
 .env
 .env.local
+.env.production
 *.db
+*.sqlite
 *.db-journal

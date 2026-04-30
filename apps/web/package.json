@@ -1,0 +1,30 @@
+{
+  "name": "@ozon-unit-economics/web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "build:pages": "cross-env DEPLOY_TARGET=github-pages next build",
+    "lint": "tsc --noEmit",
+    "test": "node --test ../../tests/unit/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "export": "npm run build:pages",
+    "preview": "npx serve out"
+  },
+  "dependencies": {
+    "@ozon-unit-economics/shared": "file:../../packages/shared",
+    "@ozon-unit-economics/unit-economics": "file:../../packages/unit-economics",
+    "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^0.468.0",
+    "next": "^15.0.0",
+    "papaparse": "^5.4.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

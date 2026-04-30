@@ -1,143 +1,197 @@
-# Ozon Unit Economics
+# Ozon Unit Economics Calculator
 
-Local Ozon Seller API unit-economics calculator for products, prices, stocks, postings, finance operations, manual costs, tariff versions, and XLSX export.
+Marketplace unit-economics calculator for Ozon sellers. It calculates profit, ROI, margin, taxes, marketplace expense share, logistics, acquiring, advertising, and missing-data warnings per SKU.
 
-## Install
+## Project Structure
+
+```text
+apps/web                 Frontend, GitHub Pages compatible static export
+apps/api                 Backend API/proxy, Ozon Seller API access, DB access
+packages/unit-economics  Shared calculation engine and formulas
+packages/shared          Shared DTOs, field sources, column definitions
+```
+
+## Two Runtime Modes
+
+### 1. GitHub Pages / Static Mode
+
+Static mode works without a backend:
+
+- import Excel/CSV in the browser;
+- edit manual fields in the table;
+- calculate unit economics locally;
+- persist data in `localStorage`;
+- export result to Excel;
+- download/upload backup JSON.
+
+Ozon API sync is disabled in this mode. The browser never calls `https://api-seller.ozon.ru`.
+
+### 2. Backend API Mode
+
+The frontend can still be hosted on GitHub Pages, but it talks only to your backend:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://your-backend-domain.com
+```
+
+The backend stores secrets and calls Ozon:
+
+```env
+OZON_CLIENT_ID=
+OZON_API_KEY=
+DATABASE_URL=
+CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io/codex
+```
+
+Never put `OZON_CLIENT_ID` or `OZON_API_KEY` into frontend code, localStorage, GitHub Pages output, or a public repository.
+
+## What The Calculator Does
+
+- Loads products, prices, stocks, postings, and finance operations from Ozon through the backend.
+- Imports manual costs from Excel/CSV.
+- Matches imported data by `offer_id` first and `barcode` second.
+- Keeps source map per field: `api`, `manual`, `imported`, `formula`, `missing`.
+- Highlights negative profit, missing cost price, missing volume, missing commission, and low margin.
+- Exports the final table to Excel.
+
+## Local Development
 
 ```bash
 npm install
 cp .env.example .env
-npx prisma generate
-npx prisma migrate dev --name init
-npm run dev
+npm run prisma:generate
+npm run prisma:migrate
+npm run dev:web
+npm run dev:api
 ```
 
-Open `http://localhost:3000`.
+Frontend: `http://localhost:3000`
+Backend: `http://localhost:3001`
 
-## Environment
+## Ozon API Setup
+
+Set backend-only variables:
 
 ```env
-DATABASE_URL="file:./dev.db"
-OZON_CLIENT_ID="..."
-OZON_API_KEY="..."
-OZON_API_BASE_URL="https://api-seller.ozon.ru"
+OZON_CLIENT_ID=
+OZON_API_KEY=
+OZON_API_BASE_URL=https://api-seller.ozon.ru
+DATABASE_URL=file:./dev.db
+CORS_ALLOWED_ORIGIN=http://localhost:3000
 ```
 
-API keys are used only in server route handlers and are never sent to the frontend.
-
-## Ozon Sync
-
-On the `Ozon Unit Economics` page, click `Sync products from Ozon`.
-
-The client in `src/lib/ozon/client.ts` sends all Ozon requests with:
+All Ozon requests are made by `apps/api` with:
 
 - `Client-Id`
 - `Api-Key`
 - `Content-Type: application/json`
 
-It supports retry for `429/5xx`, simple rate-limit protection, `last_id` and `offset` pagination, and period chunking for finance operations.
+The frontend never receives these values.
 
-Implemented endpoints are in `src/lib/ozon/sync.ts`:
-
-- `/v3/product/list`
-- `/v3/product/info/list`
-- `/v4/product/info/attributes`
-- `/v4/product/info/stocks`
-- `/v5/product/info/prices`
-- `/v2/posting/fbo/list`
-- `/v3/posting/fbs/list`
-- `/v3/finance/transaction/list`
-
-If Ozon does not return a field, the value remains `null` and the source map marks it as `missing`.
-
-## Manual Excel/CSV Import
-
-Click `Import manual data from Excel/CSV` on the calculator page.
-
-Primary match key: `Artikul` / `Артикул` -> `offer_id`.
-Secondary match key: `Barcode` / `ШК` -> `barcode`.
-
-If a row is not found in API products, the app creates a manual-only product row. If several products match, the import returns a conflict.
-
-## Calculation
-
-Calculation engine:
+## Backend Endpoints
 
 ```text
-src/lib/unitEconomics/calculateOzonUnitEconomics.ts
+GET  /health
+POST /ozon/products/sync
+POST /ozon/prices/sync
+POST /ozon/stocks/sync
+POST /ozon/finance/sync
+POST /ozon/postings/sync
+GET  /economics/products
+PUT  /economics/products
+POST /economics/recalculate
+POST /import/manual-inputs
+GET  /export/excel
 ```
 
-It accepts normalized product data, manual inputs, tariff rule, actual finance aggregates, and settings. It returns:
+`GET /health` returns:
 
-- all calculated fields;
-- warnings;
-- errors;
-- source map per field.
+```json
+{
+  "ok": true,
+  "service": "ozon-unit-economics-api"
+}
+```
 
-Settings:
+## Fields From API
 
-- `use_actual_finance_data`
-- `tax_mode`
-- `vat_mode`
-- `calculation_basis`
-- `include_express_in_logistics`
-- `include_storage_in_marketplace_expenses`
-- `include_reviews_in_total_expenses`
-- `include_self_purchase_in_total_expenses`
+When available through Ozon Seller API:
 
-## Tariffs
+- `offer_id`, `product_id`, `sku`, `barcode`, product name;
+- category/category id;
+- current price, old price, marketing/SPP price, min price;
+- VAT when returned by API;
+- dimensions, weight, calculated volume;
+- stock and reserved stock;
+- postings and statuses;
+- finance service operations: commissions, acquiring, logistics, storage, advertising/marketing, adjustments.
 
-The `Tariffs` page supports JSON/CSV/XLSX import, active version selection, and manual editing for:
+If Ozon does not return a value, the app keeps it empty and marks the field as `missing`.
 
-- commission;
-- direct logistics;
-- reverse logistics;
-- storage;
-- acceptance;
-- pickup-point delivery.
+## Manual Fields
 
-Tariffs are not hardcoded in formulas. Active tariff versions are stored in `tariff_versions` and `tariff_rules`.
+Fill these manually or import from Excel/CSV:
 
-## Field Sources
+- cost price;
+- inbound logistics;
+- base commission override;
+- product volume override;
+- buyout, non-buyout, returns, cancellations;
+- pickup delivery, Express, self-purchase, review points, storage;
+- other and confirmed expenses;
+- total DRR;
+- retail price without promo;
+- promo and discount;
+- acquiring/co-invest percent;
+- USN and VAT settings;
+- manufacturer lead time, batch quantity, monthly sold quantity.
 
-Every field has one source:
+## Excel/CSV Import
 
-- `api` - returned by Ozon API;
-- `manual` - edited in the table;
-- `imported` - imported from Excel/CSV;
-- `formula` - calculated;
-- `missing` - not available.
+Static mode imports locally in the browser. API mode uploads the file to backend endpoint `/import/manual-inputs`.
+
+Match order:
+
+1. `Артикул` / `Offer ID` -> `offer_id`
+2. `ШК` / `Barcode` -> `barcode`
+
+Rows not found in API products become manual-only rows.
 
 ## Export
 
-Click `Export to Excel` to download all manual and calculated columns as `.xlsx`.
+Static mode exports from browser memory.
+API mode downloads from backend endpoint `/export/excel`.
 
-## Tests
+## GitHub Pages Deploy
 
-```bash
-npm test
+The workflow `.github/workflows/deploy-pages.yml` runs on push to `main`:
+
+1. installs dependencies;
+2. runs lint;
+3. runs typecheck;
+4. runs tests;
+5. builds `apps/web` as static output;
+6. deploys `apps/web/out` to GitHub Pages.
+
+For this repository the base path is:
+
+```env
+NEXT_PUBLIC_BASE_PATH=/codex
 ```
 
-Formula tests cover:
+## Backend Deploy
 
-- 100% buyout;
-- 70% buyout with returns;
-- negative profit;
-- missing cost price;
-- missing volume;
-- `buyout_percent = 0`;
-- promo discount;
-- USN income;
-- USN income minus expenses;
-- VAT included in price;
-- annual ROI;
-- no double-counted expenses.
+Use Vercel, Render, Railway, Fly.io, or a VPS. Backend deployment details are in `DEPLOYMENT.md`.
 
-## API And Tariff Notes
+## Why Browser Cannot Call Ozon Directly
 
-Public Ozon documentation was checked before implementation:
+Ozon Seller API requires `Client-Id` and `Api-Key`. If the browser calls Ozon directly, those secrets must be shipped to public frontend code or stored in localStorage. That exposes the seller account. For this reason, Ozon calls are allowed only from the backend/proxy.
 
-- Seller API uses `Client-Id` and `Api-Key`.
-- FBS postings are available through `POST /v3/posting/fbs/list`.
-- `POST /v3/finance/transaction/list` returns accrual operations and should be requested in period chunks.
-- Ozon tariffs change by effective dates, so tariffs are imported as versions instead of being hardcoded.
+## Checks
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build:pages
+```

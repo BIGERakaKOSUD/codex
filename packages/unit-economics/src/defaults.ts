@@ -1,0 +1,43 @@
+import type { CalculationSettings, ProductManualInputs } from "../../shared/src/types.ts";
+
+export const defaultCalculationSettings: CalculationSettings = {
+  use_actual_finance_data: false,
+  tax_mode: "no_tax",
+  vat_mode: "no_vat",
+  calculation_basis: "per_buyout",
+  include_express_in_logistics: true,
+  include_storage_in_marketplace_expenses: true,
+  include_reviews_in_total_expenses: true,
+  include_self_purchase_in_total_expenses: true,
+};
+
+export const emptyManualInputs: ProductManualInputs = {
+  cost_price: null,
+  inbound_logistics_to_warehouse: null,
+  base_commission_percent: null,
+  product_volume_liters: null,
+  free_acceptance: null,
+  buyout_percent: null,
+  non_buyout_percent: null,
+  return_percent: null,
+  cancel_percent: null,
+  delivery_to_pickup_point_cost: null,
+  express_cost: null,
+  self_purchase_cost: null,
+  review_points_cost: null,
+  paid_storage_cost: null,
+  other_expenses: null,
+  confirmed_other_expenses: null,
+  total_drr_percent: null,
+  retail_price_without_promo: null,
+  promo_name: null,
+  promo_discount_percent: null,
+  coinvest_acquiring_percent: null,
+  tax_usn_income_percent: null,
+  tax_usn_income_minus_expenses_percent: null,
+  vat_percent: null,
+  manufacturer_logistics_lead_weeks: null,
+  batch_qty: null,
+  sold_qty_month: null,
+  source: "manual",
+};

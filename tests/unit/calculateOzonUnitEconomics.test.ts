@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { calculateOzonUnitEconomics } from "../../src/lib/unitEconomics/calculateOzonUnitEconomics.ts";
+import { calculateOzonUnitEconomics } from "../../packages/unit-economics/src/calculateOzonUnitEconomics.ts";
 
 const product = {
   barcode: "4600000000001",

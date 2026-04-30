@@ -1,27 +1,25 @@
 {
   "name": "ozon-unit-economics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "npm run dev -w apps/web",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "build:pages": "npm run build:pages -w apps/web",
+    "lint": "npm run lint -w apps/web && npm run lint -w apps/api",
     "test": "node --test tests/unit/*.test.ts",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.18.0",
-    "@tanstack/react-table": "^8.21.3",
-    "lucide-react": "^0.468.0",
-    "next": "^15.0.0",
-    "papaparse": "^5.4.1",
-    "prisma": "^6.18.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "xlsx": "^0.18.5"
+    "typecheck": "npm run typecheck -w apps/web && npm run typecheck -w apps/api",
+    "export": "npm run build:pages -w apps/web",
+    "preview": "npx serve apps/web/out",
+    "prisma:generate": "npm run prisma:generate -w apps/api",
+    "prisma:migrate": "npm run prisma:migrate -w apps/api"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

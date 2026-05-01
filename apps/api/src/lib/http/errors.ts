@@ -1,7 +1,12 @@
 import { OzonApiError } from "@/lib/ozon/client.ts";
 import { corsJson } from "./cors.ts";
+import { RequestValidationError } from "./validation.ts";
 
 export function apiErrorResponse(request: Request, error: unknown): Response {
+  if (error instanceof RequestValidationError) {
+    return corsJson(request, { error: error.message }, { status: 400 });
+  }
+
   if (error instanceof OzonApiError) {
     if (error.status === 401 || error.status === 403) {
       return corsJson(

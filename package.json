@@ -19,7 +19,8 @@
     "export": "npm run build:pages -w apps/web",
     "preview": "npx serve apps/web/out",
     "prisma:generate": "npm run prisma:generate -w apps/api",
-    "prisma:migrate": "npm run prisma:migrate -w apps/api"
+    "prisma:migrate": "npm run prisma:migrate -w apps/api",
+    "prisma:deploy": "npm run prisma:deploy -w apps/api"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

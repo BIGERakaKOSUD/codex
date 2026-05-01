@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
+import { isWildcardCorsOrigin, normalizeCorsOrigin } from "./security.ts";
 
-const localOrigins = ["http://localhost:3000", "http://localhost:3001"];
+const localOrigins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"];
 
 function allowedOrigins(): string[] {
-  const configured = (process.env.CORS_ALLOWED_ORIGIN ?? "")
+  const rawConfigured = process.env.CORS_ALLOWED_ORIGIN ?? "";
+  if (isWildcardCorsOrigin(rawConfigured)) {
+    console.error("CORS wildcard origin is not allowed. Configure CORS_ALLOWED_ORIGIN with exact frontend URL.");
+  }
+
+  const configured = rawConfigured
     .split(",")
     .map((origin) => origin.trim())
-    .filter(Boolean);
+    .filter((origin) => origin && origin !== "*")
+    .map(normalizeCorsOrigin);
 
   return [...new Set([...localOrigins, ...configured])];
 }

@@ -1,120 +1,101 @@
-# Deployment Guide
+# Deployment
 
-## 1. Frontend On GitHub Pages
+Проект деплоится двумя независимыми частями:
 
-1. Create or open the GitHub repository.
-2. Push this project to `main`.
-3. Open repository `Settings -> Pages`.
-4. Set `Source` to `GitHub Actions`.
-5. Confirm that `.github/workflows/deploy-pages.yml` exists.
-6. For a repository URL like `https://username.github.io/repository-name/`, set:
+- frontend: GitHub Pages, только статические файлы из `apps/web/out`;
+- backend: VPS + Docker Compose + PostgreSQL + Nginx.
 
-```env
-NEXT_PUBLIC_BASE_PATH=/repository-name
+Frontend никогда не обращается напрямую к Ozon Seller API и не содержит `OZON_CLIENT_ID` / `OZON_API_KEY`.
+
+## 1. Frontend на GitHub Pages
+
+1. Откройте GitHub repository `BIGERakaKOSUD/codex`.
+2. Перейдите в `Settings -> Pages`.
+3. В `Source` выберите `GitHub Actions`.
+4. Проверьте, что workflow `.github/workflows/deploy-pages.yml` есть в ветке `main`.
+5. Сделайте push в `main`.
+6. Дождитесь workflow `Deploy GitHub Pages`.
+7. Откройте:
+
+```text
+https://bigerakakosud.github.io/codex/
 ```
 
-For `BIGERakaKOSUD/codex`, the workflow uses:
+Страница калькулятора:
 
-```env
+```text
+https://bigerakakosud.github.io/codex/ozon-unit-economics/
+```
+
+Для GitHub Pages workflow использует:
+
+```text
 NEXT_PUBLIC_BASE_PATH=/codex
+NEXT_PUBLIC_API_BASE_URL=
 ```
 
-7. Push to `main`.
-8. Wait for the `Deploy GitHub Pages` workflow.
-9. Open the Pages URL.
+С пустым `NEXT_PUBLIC_API_BASE_URL` приложение стартует в Static Mode.
 
-Static mode works immediately after deploy. Ozon API sync is disabled until a backend URL is configured.
+## 2. Backend на VPS
 
-## 2. Backend On Vercel
+Основной backend deployment описан в [DEPLOYMENT_VPS.md](DEPLOYMENT_VPS.md).
 
-1. Import the GitHub repository into Vercel.
-2. Set Root Directory to `apps/api`.
-3. Build command:
+Короткая схема:
 
 ```bash
-npm install && npm run prisma:generate && npm run build
+git clone https://github.com/BIGERakaKOSUD/codex.git
+cd codex
+cp .env.production.example .env.production
+nano .env.production
+docker compose up -d
+curl http://localhost:3001/health
 ```
 
-4. Start command is handled by Vercel Functions.
-5. Add environment variables:
-
-```env
-OZON_CLIENT_ID=
-OZON_API_KEY=
-OZON_API_BASE_URL=https://api-seller.ozon.ru
-DATABASE_URL=
-CORS_ALLOWED_ORIGIN=https://username.github.io/repository-name
-```
-
-6. Deploy.
-7. Copy the backend URL, for example:
+После настройки Nginx и HTTPS backend будет доступен, например:
 
 ```text
-https://your-backend-domain.vercel.app
+https://api.your-domain.ru
 ```
 
-8. Open the frontend, switch to `API / Backend`, paste the backend URL, and click `Проверить подключение`.
+## 3. Подключение frontend к backend
 
-## 3. Backend On Render Or Railway
+Есть два варианта:
 
-Use the whole repository or `apps/api` as the service root.
+1. Runtime: открыть GitHub Pages, выбрать `API / Backend`, ввести `https://api.your-domain.ru`, нажать "Проверить подключение". URL сохранится в браузере.
+2. Build-time: задать `NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.ru` в GitHub Actions env и пересобрать Pages.
 
-Build command:
+Backend должен разрешать origin:
+
+```text
+CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io/codex
+```
+
+## 4. Проверка
+
+Frontend:
+
+```text
+https://bigerakakosud.github.io/codex/ozon-unit-economics/
+```
+
+Backend:
 
 ```bash
-npm install && npm run prisma:generate && npm run build -w apps/api
+curl https://api.your-domain.ru/health
 ```
 
-Start command:
+Ожидаемый ответ:
 
-```bash
-npm run start -w apps/api
+```json
+{
+  "ok": true,
+  "service": "ozon-unit-economics-api"
+}
 ```
 
-Environment variables:
+## 5. Что нельзя делать
 
-```env
-OZON_CLIENT_ID=
-OZON_API_KEY=
-OZON_API_BASE_URL=https://api-seller.ozon.ru
-DATABASE_URL=
-CORS_ALLOWED_ORIGIN=https://username.github.io/repository-name
-```
-
-For production, use PostgreSQL for `DATABASE_URL`. SQLite is intended for local development.
-
-## 4. Verification
-
-1. Open the frontend Pages URL.
-2. Confirm Static mode status:
-   - `GitHub Pages mode`
-   - `Ozon API: disabled`
-   - `Import Excel: enabled`
-   - `Export Excel: enabled`
-3. Import Excel/CSV and confirm calculations appear.
-4. Export Excel.
-5. Switch to `API / Backend`.
-6. Paste backend URL.
-7. Click `Проверить подключение`.
-8. Click `Синхронизировать товары Ozon`.
-
-If the backend is unavailable, the frontend will show:
-
-```text
-Backend недоступен. Проверьте NEXT_PUBLIC_API_BASE_URL или адрес API.
-```
-
-If Ozon credentials are wrong, the backend will return:
-
-```text
-Ozon API returned an authorization error. Check OZON_CLIENT_ID and OZON_API_KEY on the backend.
-```
-
-## 5. Security Checklist
-
-- Do not commit `.env`.
-- Do not put `OZON_API_KEY` into frontend code.
-- Do not use `localStorage` for Ozon credentials.
-- Do not set production CORS to `*`.
-- Set `CORS_ALLOWED_ORIGIN` to the exact frontend URL.
-- Keep Ozon requests inside `apps/api`.
+- Нельзя публиковать `OZON_API_KEY` во frontend env.
+- Нельзя вводить Ozon ключи в браузере.
+- Нельзя ставить `CORS_ALLOWED_ORIGIN=*` в production.
+- Нельзя коммитить `.env.production`.

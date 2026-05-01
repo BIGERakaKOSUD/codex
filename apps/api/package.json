@@ -11,7 +11,8 @@
     "test": "node --test ../../tests/unit/*.test.ts",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma"
+    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:deploy": "prisma db push --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@ozon-unit-economics/shared": "file:../../packages/shared",
@@ -22,6 +23,7 @@
     "prisma": "^6.18.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.4.2"
   }
 }

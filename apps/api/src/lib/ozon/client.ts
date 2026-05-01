@@ -1,3 +1,5 @@
+import { sanitizeLogValue } from "@/lib/http/security.ts";
+
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = Record<string, JsonValue>;
 
@@ -7,6 +9,7 @@ export interface OzonClientOptions {
   apiKey?: string;
   minIntervalMs?: number;
   maxRetries?: number;
+  timeoutMs?: number;
 }
 
 export class OzonApiError extends Error {
@@ -27,18 +30,16 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function sanitizeErrorBody(body: unknown): unknown {
-  if (!body || typeof body !== "object") {
-    return body;
+function parseJsonSafely(text: string): unknown {
+  if (!text) {
+    return null;
   }
 
-  const clone = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
-  for (const key of Object.keys(clone)) {
-    if (key.toLowerCase().includes("api") || key.toLowerCase().includes("key") || key.toLowerCase().includes("secret")) {
-      clone[key] = "[redacted]";
-    }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
   }
-  return clone;
 }
 
 export function normalizeMoney(value: unknown): number | null {
@@ -77,6 +78,7 @@ export class OzonApiClient {
   private readonly apiKey: string;
   private readonly minIntervalMs: number;
   private readonly maxRetries: number;
+  private readonly timeoutMs: number;
 
   constructor(options: OzonClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? process.env.OZON_API_BASE_URL ?? "https://api-seller.ozon.ru").replace(/\/$/, "");
@@ -84,6 +86,7 @@ export class OzonApiClient {
     this.apiKey = options.apiKey ?? process.env.OZON_API_KEY ?? "";
     this.minIntervalMs = options.minIntervalMs ?? 150;
     this.maxRetries = options.maxRetries ?? 4;
+    this.timeoutMs = options.timeoutMs ?? 30_000;
 
     if (!this.clientId || !this.apiKey) {
       throw new OzonApiError("Ozon API credentials are missing", 401, "credentials", null);
@@ -101,18 +104,37 @@ export class OzonApiClient {
       }
       nextAllowedRequestAt = Date.now() + this.minIntervalMs;
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Client-Id": this.clientId,
-          "Api-Key": this.apiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Client-Id": this.clientId,
+            "Api-Key": this.apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        if (attempt < this.maxRetries) {
+          console.error("Ozon API network retry", sanitizeLogValue({ endpoint, attempt: attempt + 1, error }));
+          await sleep(500 * 2 ** attempt);
+          attempt += 1;
+          continue;
+        }
+
+        console.error("Ozon API network error", sanitizeLogValue({ endpoint, error }));
+        throw new OzonApiError(`Ozon API request failed: ${endpoint}`, 503, endpoint, sanitizeLogValue(error));
+      }
+      clearTimeout(timeout);
 
       const text = await response.text();
-      const payload = text ? JSON.parse(text) : null;
+      const payload = parseJsonSafely(text);
 
       if (response.ok) {
         return payload as T;
@@ -122,23 +144,23 @@ export class OzonApiClient {
       if (retriable && attempt < this.maxRetries) {
         const retryAfter = Number(response.headers.get("retry-after"));
         const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt;
-        console.error("Ozon API retry", {
+        console.error("Ozon API retry", sanitizeLogValue({
           endpoint,
           status: response.status,
           attempt: attempt + 1,
-          body: sanitizeErrorBody(payload),
-        });
+          body: payload,
+        }));
         await sleep(delay);
         attempt += 1;
         continue;
       }
 
-      console.error("Ozon API error", {
+      console.error("Ozon API error", sanitizeLogValue({
         endpoint,
         status: response.status,
-        body: sanitizeErrorBody(payload),
-      });
-      throw new OzonApiError(`Ozon API request failed: ${endpoint}`, response.status, endpoint, sanitizeErrorBody(payload));
+        body: payload,
+      }));
+      throw new OzonApiError(`Ozon API request failed: ${endpoint}`, response.status, endpoint, sanitizeLogValue(payload));
     }
 
     throw new OzonApiError(`Ozon API request failed after retries: ${endpoint}`, 500, endpoint, null);

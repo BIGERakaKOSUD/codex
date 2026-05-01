@@ -3,8 +3,8 @@ import { apiErrorResponse } from "@/lib/http/errors.ts";
 import { corsJson, optionsResponse } from "@/lib/http/cors.ts";
 import { getEconomicsRows } from "@/lib/economicsService.ts";
 import { prisma } from "@/lib/db.ts";
-import { editableManualKeys } from "@ozon-unit-economics/shared";
 import { prismaManualFieldMap } from "@/lib/importExport/manualImport.ts";
+import { validateEditableProductUpdate } from "@/lib/http/validation.ts";
 import type { Prisma } from "@prisma/client";
 
 export function OPTIONS(request: Request): Response {
@@ -44,16 +44,7 @@ function normalizeEditableValue(field: string, value: unknown): string | number 
 
 export async function PUT(request: Request): Promise<Response> {
   try {
-    const body = (await request.json()) as {
-      offer_id?: string | null;
-      barcode?: string | null;
-      field?: string;
-      value?: unknown;
-    };
-
-    if (!body.field || !editableManualKeys.has(body.field)) {
-      return corsJson(request, { error: "Field is not editable" }, { status: 400 });
-    }
+    const body = validateEditableProductUpdate(await request.json().catch(() => ({})));
 
     const prismaField = prismaManualFieldMap[body.field];
     if (!prismaField) {

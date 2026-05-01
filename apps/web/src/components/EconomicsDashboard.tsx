@@ -183,10 +183,14 @@ export function EconomicsDashboard() {
 
   useEffect(() => {
     const store = loadStaticStore();
+    const initialBackendUrl = initialApiBaseUrl();
     setStaticStore(store);
     setRows(store.rows);
     setLastCalculation(store.lastCalculation);
-    setApiBaseUrl(initialApiBaseUrl());
+    setApiBaseUrl(initialBackendUrl);
+    if (initialBackendUrl) {
+      setMode("api");
+    }
   }, []);
 
   function persistStatic(nextRows: EconomicsRow[], overrides: Partial<StaticStore> = {}) {

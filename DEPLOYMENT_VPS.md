@@ -53,7 +53,7 @@ DATABASE_URL=postgresql://ozon_user:strong_password@postgres:5432/ozon_unit_econ
 OZON_CLIENT_ID=
 OZON_API_KEY=
 OZON_API_BASE_URL=https://api-seller.ozon.ru
-CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io/codex
+CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io
 MAX_BODY_BYTES=10485760
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=120
@@ -68,7 +68,7 @@ POSTGRES_DB=ozon_unit_economics
 ## 5. Запустить backend и PostgreSQL
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 docker compose ps
 ```
 

@@ -12,6 +12,8 @@
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "build": "npm run build -w apps/web && npm run build -w apps/api",
+    "build:web": "npm run build -w apps/web",
+    "build:api": "npm run build -w apps/api",
     "build:pages": "npm run build:pages -w apps/web",
     "lint": "npm run lint -w apps/web && npm run lint -w apps/api",
     "test": "node --test tests/unit/*.test.ts",

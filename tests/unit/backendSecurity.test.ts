@@ -8,6 +8,7 @@ import {
   sanitizeLogValue,
 } from "../../apps/api/src/lib/http/security.ts";
 import { validateEditableProductUpdate } from "../../apps/api/src/lib/http/validation.ts";
+import { isOzonCredentialsConfigured, OzonApiClient, OzonApiError } from "../../apps/api/src/lib/ozon/client.ts";
 
 test("masks secrets without exposing full values", () => {
   assert.equal(maskSecret("abcdef123456"), "abcd...3456");
@@ -62,5 +63,18 @@ test("validates editable product update body and rejects unknown fields", () => 
   assert.throws(
     () => validateEditableProductUpdate({ offer_id: "OFFER-1", field: "product_name", value: "bad" }),
     /Field is not editable/,
+  );
+});
+
+test("Ozon client reports missing credentials as a safe client error", () => {
+  assert.equal(isOzonCredentialsConfigured({ clientId: "", apiKey: "" }), false);
+  assert.equal(isOzonCredentialsConfigured({ clientId: "client", apiKey: "key" }), true);
+
+  assert.throws(
+    () => new OzonApiClient({ clientId: "", apiKey: "" }),
+    (error: unknown) =>
+      error instanceof OzonApiError &&
+      error.status === 400 &&
+      error.message === "Ozon API credentials are missing on backend",
   );
 });

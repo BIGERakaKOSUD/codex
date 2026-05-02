@@ -41,3 +41,14 @@ export function validateEditableProductUpdate(value: unknown): EditableProductUp
     value: parsed.data.value ?? null,
   };
 }
+
+const settingsUpdateSchema = z.record(z.string(), z.unknown());
+
+export function validateSettingsUpdate(value: unknown): Record<string, unknown> {
+  const parsed = settingsUpdateSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new RequestValidationError(parsed.error.issues[0]?.message ?? "Invalid settings body");
+  }
+
+  return parsed.data;
+}

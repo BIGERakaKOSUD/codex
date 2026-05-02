@@ -457,7 +457,7 @@ export function EconomicsDashboard() {
           <div className="notice">GitHub Pages mode: API Ozon недоступен. Для синхронизации с Ozon подключите backend.</div>
         ) : (
           <div className="api-url">
-            <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} placeholder="https://your-backend-domain.com" />
+            <input value={apiBaseUrl} onChange={(event) => setApiBaseUrl(event.target.value)} placeholder="http://localhost:3001 или https://api.example.ru" />
             <button className="btn" disabled={loading} onClick={checkConnection}>
               <PlugZap size={16} />
               Проверить подключение
@@ -502,14 +502,15 @@ export function EconomicsDashboard() {
 
         {mode === "api" ? (
           <>
-            <button className="btn primary" disabled={loading} onClick={() => runApiAction("Синхронизация товаров", "/ozon/products/sync")}>
+            <button className="btn primary" disabled={loading || !backendConnected} onClick={() => runApiAction("Синхронизация товаров", "/ozon/products/sync")}>
               <RefreshCcw size={16} />
               Синхронизировать товары Ozon
             </button>
-            <button className="btn" disabled={loading} onClick={() => runApiAction("Синхронизация цен", "/ozon/prices/sync")}>Цены</button>
-            <button className="btn" disabled={loading} onClick={() => runApiAction("Синхронизация остатков", "/ozon/stocks/sync")}>Остатки</button>
-            <button className="btn" disabled={loading} onClick={() => runApiAction("Синхронизация финансов", "/ozon/finance/sync")}>Финансы</button>
-            <button className="btn" disabled={loading} onClick={() => runApiAction("Пересчет", "/economics/recalculate")}>
+            <button className="btn" disabled={loading || !backendConnected} onClick={() => runApiAction("Синхронизация цен", "/ozon/prices/sync")}>Цены</button>
+            <button className="btn" disabled={loading || !backendConnected} onClick={() => runApiAction("Синхронизация остатков", "/ozon/stocks/sync")}>Остатки</button>
+            <button className="btn" disabled={loading || !backendConnected} onClick={() => runApiAction("Синхронизация финансов", "/ozon/finance/sync")}>Финансы</button>
+            <button className="btn" disabled={loading || !backendConnected} onClick={() => runApiAction("Синхронизация отправлений", "/ozon/postings/sync")}>Отправления</button>
+            <button className="btn" disabled={loading || !backendConnected} onClick={() => runApiAction("Пересчет", "/economics/recalculate")}>
               <RotateCw size={16} />
               Пересчитать
             </button>

@@ -156,3 +156,13 @@ model CalculationSnapshot {
   @@index([offerId])
   @@map("calculation_snapshots")
 }
+
+model AppSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

@@ -1,4 +1,4 @@
-import { sanitizeLogValue } from "@/lib/http/security.ts";
+import { sanitizeLogValue } from "../http/security.ts";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = Record<string, JsonValue>;
@@ -13,14 +13,16 @@ export interface OzonClientOptions {
 }
 
 export class OzonApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly endpoint: string,
-    public readonly responseBody: unknown,
-  ) {
+  readonly status: number;
+  readonly endpoint: string;
+  readonly responseBody: unknown;
+
+  constructor(message: string, status: number, endpoint: string, responseBody: unknown) {
     super(message);
     this.name = "OzonApiError";
+    this.status = status;
+    this.endpoint = endpoint;
+    this.responseBody = responseBody;
   }
 }
 
@@ -72,6 +74,12 @@ export function chunkDateRange(from: Date, to: Date, maxDays = 31): Array<{ from
   return chunks;
 }
 
+export function isOzonCredentialsConfigured(options: Pick<OzonClientOptions, "clientId" | "apiKey"> = {}): boolean {
+  const clientId = options.clientId ?? process.env.OZON_CLIENT_ID ?? "";
+  const apiKey = options.apiKey ?? process.env.OZON_API_KEY ?? "";
+  return Boolean(clientId.trim() && apiKey.trim());
+}
+
 export class OzonApiClient {
   private readonly baseUrl: string;
   private readonly clientId: string;
@@ -88,9 +96,18 @@ export class OzonApiClient {
     this.maxRetries = options.maxRetries ?? 4;
     this.timeoutMs = options.timeoutMs ?? 30_000;
 
-    if (!this.clientId || !this.apiKey) {
-      throw new OzonApiError("Ozon API credentials are missing", 401, "credentials", null);
+    if (!isOzonCredentialsConfigured({ clientId: this.clientId, apiKey: this.apiKey })) {
+      throw new OzonApiError("Ozon API credentials are missing on backend", 400, "credentials", null);
     }
+  }
+
+  async testConnection(): Promise<{ ok: true }> {
+    await this.request<unknown>("/v3/product/list", {
+      filter: { visibility: "ALL" },
+      limit: 1,
+      last_id: "",
+    });
+    return { ok: true };
   }
 
   async request<T>(endpoint: string, body: JsonObject = {}): Promise<T> {

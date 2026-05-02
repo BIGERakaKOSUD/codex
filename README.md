@@ -1,136 +1,148 @@
 # Ozon Unit Economics Calculator
 
-Калькулятор юнит-экономики Ozon для расчета прибыли, ROI, маржинальности, налогов и доли расходов по SKU. Проект разделен на frontend, backend и общие пакеты:
+Калькулятор юнит-экономики Ozon: импортирует ручные данные из Excel/CSV, подтягивает данные Ozon через backend, считает прибыль, ROI, маржинальность, налоги и долю расходов по SKU.
 
-- `apps/web` - статический frontend для GitHub Pages.
-- `apps/api` - backend API для VPS/Docker Compose.
-- `packages/unit-economics` - calculation engine и формулы.
-- `packages/shared` - общие DTO, типы, колонки и helpers.
+Структура:
 
-## Режимы работы
+- `apps/web` - frontend, статический export для GitHub Pages.
+- `apps/api` - backend REST API для локального запуска и VPS через Docker Compose.
+- `packages/unit-economics` - расчетный engine без зависимости от frontend/backend.
+- `packages/shared` - общие типы, DTO и описания колонок.
 
-### Static Mode
+## Как открыть frontend
 
-Работает полностью в браузере и подходит для GitHub Pages без backend:
-
-- импорт Excel/CSV с ручными данными;
-- расчет юнит-экономики локально;
-- ручное редактирование таблицы;
-- экспорт результата в Excel;
-- backup JSON и восстановление backup;
-- данные хранятся в `localStorage`;
-- Ozon API недоступен.
-
-В этом режиме приложение не отправляет данные на сервер и не знает `OZON_CLIENT_ID` / `OZON_API_KEY`.
-
-### API Mode
-
-Frontend обращается только к вашему backend URL:
-
-```text
-NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.ru
-```
-
-Backend уже обращается к Ozon Seller API и хранит credentials только в environment variables на VPS:
-
-```text
-OZON_CLIENT_ID=
-OZON_API_KEY=
-```
-
-Нельзя подключать Ozon API напрямую из браузера: ключи окажутся в публичном bundle, localStorage, DevTools или сетевых запросах. Поэтому GitHub Pages frontend работает либо в Static Mode, либо через backend/proxy.
-
-## GitHub Pages frontend
-
-После деплоя frontend открывается по адресу:
+GitHub Pages:
 
 ```text
 https://bigerakakosud.github.io/codex/
 https://bigerakakosud.github.io/codex/ozon-unit-economics/
 ```
 
-Workflow: `.github/workflows/deploy-pages.yml`.
-
-Он запускает:
+Локально:
 
 ```bash
 npm install
-npm run prisma:generate
-npm run lint
-npm run typecheck
-npm test
-npm run build:pages
-```
-
-и публикует `apps/web/out`.
-
-## Локальный запуск
-
-Установить зависимости:
-
-```bash
-npm install
-```
-
-Создать локальный env:
-
-```bash
-copy .env.example .env.local
-```
-
-Для backend нужен PostgreSQL. Самый простой вариант - поднять его через Docker или использовать тот же compose-файл, что на VPS.
-
-Сгенерировать Prisma Client:
-
-```bash
-npm run prisma:generate
-```
-
-Запустить frontend:
-
-```bash
 npm run dev:web
 ```
 
-Frontend будет доступен на:
+Открыть:
 
 ```text
 http://localhost:3000/ozon-unit-economics/
 ```
 
-Запустить backend:
+## Static Mode
+
+Static Mode работает без backend:
+
+- импорт Excel/CSV;
+- ручное редактирование;
+- расчет прямо в браузере;
+- экспорт Excel;
+- backup JSON;
+- данные хранятся локально в браузере.
+
+В Static Mode синхронизация с Ozon API недоступна.
+
+## API Mode
+
+API Mode работает через backend URL:
+
+```text
+http://localhost:3001
+https://api.example.ru
+```
+
+Frontend хранит только backend URL. Он не принимает, не хранит и не отправляет `OZON_CLIENT_ID` и `OZON_API_KEY`.
+
+## Почему нельзя вставлять Ozon keys во frontend
+
+GitHub Pages - публичный статический хостинг. Любые `NEXT_PUBLIC_*` переменные попадают в browser bundle. Если положить туда `OZON_API_KEY`, его можно будет увидеть в DevTools, network requests или исходниках сайта.
+
+Правильная схема:
+
+```text
+browser -> backend -> Ozon Seller API
+```
+
+Ozon credentials должны быть только в backend env.
+
+## Локальный backend
+
+Backend слушает `http://localhost:3001`.
+
+Создать env:
 
 ```bash
+copy apps\api\.env.example apps\api\.env.local
+```
+
+Для локальной БД используйте PostgreSQL. Можно поднять тот же stack через Docker Compose:
+
+```bash
+copy .env.production.example .env.production
+notepad .env.production
+docker compose up -d --build
+```
+
+Проверить:
+
+```bash
+curl http://localhost:3001/health
+```
+
+Ожидаемый ответ:
+
+```json
+{"ok":true,"service":"ozon-unit-economics-api"}
+```
+
+Если backend запускается без Docker:
+
+```bash
+npm run prisma:generate
 npm run dev:api
 ```
 
-Backend healthcheck:
+## Ozon API keys
 
-```bash
-curl http://localhost:3001/health
+Получите `Client-Id` и `Api-Key` в кабинете продавца Ozon.
+
+Ключи вставляются только в backend env:
+
+```env
+OZON_CLIENT_ID=
+OZON_API_KEY=
+OZON_API_BASE_URL=https://api-seller.ozon.ru
 ```
 
-## Backend на VPS
+Не добавляйте эти значения в `NEXT_PUBLIC_*`, frontend, localStorage или GitHub Secrets для Pages build.
 
-Основной production deployment: Ubuntu VPS + Docker Compose + PostgreSQL + Nginx reverse proxy + HTTPS.
+## Подключить frontend к backend
 
-Минимальные команды на VPS:
+1. Откройте `/ozon-unit-economics/`.
+2. Выберите `API / Backend`.
+3. Введите backend URL:
 
-```bash
-git clone https://github.com/BIGERakaKOSUD/codex.git
-cd codex
-cp .env.production.example .env.production
-nano .env.production
-docker compose up -d
-curl http://localhost:3001/health
+```text
+http://localhost:3001
 ```
 
-Подробно: [DEPLOYMENT_VPS.md](DEPLOYMENT_VPS.md).
+или production:
+
+```text
+https://api.example.ru
+```
+
+4. Нажмите "Проверить подключение".
+5. После статуса `connected` станут доступны кнопки синхронизации Ozon.
 
 ## Backend endpoints
 
 ```text
 GET  /health
+GET  /settings
+PUT  /settings
 POST /ozon/products/sync
 POST /ozon/prices/sync
 POST /ozon/stocks/sync
@@ -143,33 +155,97 @@ POST /import/manual-inputs
 GET  /export/excel
 ```
 
+Если Ozon credentials пустые, sync endpoints возвращают понятную ошибку и backend не падает.
+
+## VPS backend
+
+Основной production вариант: Ubuntu VPS + Docker Compose + PostgreSQL + Nginx + HTTPS.
+
+```bash
+git clone https://github.com/BIGERakaKOSUD/codex.git
+cd codex
+cp .env.production.example .env.production
+nano .env.production
+docker compose up -d --build
+curl http://localhost:3001/health
+```
+
+Важно для GitHub Pages:
+
+```env
+CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io
+```
+
+Не используйте `/codex` в `CORS_ALLOWED_ORIGIN`: browser Origin не содержит path.
+
+Подробно: [DEPLOYMENT_VPS.md](DEPLOYMENT_VPS.md).
+
+## GitHub Pages build
+
+Workflow `.github/workflows/deploy-pages.yml` собирает только frontend и публикует `apps/web/out`.
+
+Pages env:
+
+```env
+NEXT_PUBLIC_BASE_PATH=/codex
+NEXT_PUBLIC_API_BASE_URL=
+```
+
+Можно задать постоянный backend:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://api.example.ru
+```
+
+Нельзя задавать во frontend:
+
+```env
+OZON_CLIENT_ID
+OZON_API_KEY
+DATABASE_URL
+```
+
 ## Импорт Excel/CSV
 
-Основной ключ сопоставления: `Артикул` = `offer_id`.
+Основной ключ сопоставления:
 
-Второй ключ: `ШК` = `barcode`.
+```text
+Артикул = offer_id
+```
 
-Если товар из файла не найден среди Ozon-товаров, он добавляется как manual-only строка. Если товар есть в API, но нет в файле, ручные поля остаются missing.
+Второй ключ:
+
+```text
+ШК = barcode
+```
+
+Если товар из файла не найден в Ozon-данных, он добавляется как manual-only строка.
 
 ## Экспорт Excel
 
-Кнопка "Экспорт в Excel" выгружает все API/manual/imported/formula поля, итоговые расходы, налоги, прибыль, ROI и маржинальность.
+Кнопка "Экспорт в Excel" выгружает ручные, импортированные, API и расчетные поля.
 
-## Security checklist
+## Команды
 
-- `.env`, `.env.local`, `.env.production` игнорируются Git.
-- `OZON_API_KEY` и `OZON_CLIENT_ID` не используются в `apps/web`.
-- Frontend хранит только backend URL и локальные строки калькулятора.
-- CORS не использует `*` в production.
-- Backend ограничивает размер body/import файлов.
-- Backend валидирует входящие update-запросы через Zod.
-- Ozon client маскирует secrets в logs.
-- API контейнер опубликован только на `127.0.0.1:3001`; наружу его открывает Nginx.
+```bash
+npm install
+npm run dev:web
+npm run dev:api
+npm run build:web
+npm run build:api
+npm run build:pages
+npm run lint
+npm run typecheck
+npm test
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:deploy
+```
 
 ## Типичные ошибки
 
-- `Backend недоступен` - проверьте API URL в API Mode и `CORS_ALLOWED_ORIGIN` на backend.
-- `Ozon API returned an authorization error` - проверьте `OZON_CLIENT_ID` и `OZON_API_KEY` на VPS.
-- GitHub Pages показывает Static Mode - это нормально, если `NEXT_PUBLIC_API_BASE_URL` пустой.
-- `docker compose up -d` не стартует - проверьте `.env.production`, пароль PostgreSQL и `DATABASE_URL`.
-- Нет расчета прибыли - заполните себестоимость, цену, выкуп и объем вручную или через Excel/CSV.
+- `Backend недоступен` - проверьте backend URL и `/health`.
+- `CORS` error - проверьте `CORS_ALLOWED_ORIGIN`; для Pages нужно `https://bigerakakosud.github.io`.
+- `Ozon API credentials are missing on backend` - заполните `OZON_CLIENT_ID` и `OZON_API_KEY` на backend.
+- `docker compose up` не стартует - проверьте `POSTGRES_PASSWORD` и `DATABASE_URL`.
+- На GitHub Pages виден Static Mode - это нормально, если backend URL не задан.

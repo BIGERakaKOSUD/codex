@@ -67,7 +67,7 @@ https://api.your-domain.ru
 Backend должен разрешать origin:
 
 ```text
-CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io/codex
+CORS_ALLOWED_ORIGIN=https://bigerakakosud.github.io
 ```
 
 ## 4. Проверка

@@ -15,7 +15,8 @@ function allowedOrigins(): string[] {
     .filter((origin) => origin && origin !== "*")
     .map(normalizeCorsOrigin);
 
-  return [...new Set([...localOrigins, ...configured])];
+  const includeLocalOrigins = process.env.NODE_ENV !== "production" || process.env.CORS_ALLOW_LOCALHOST === "true";
+  return [...new Set([...(includeLocalOrigins ? localOrigins : []), ...configured])];
 }
 
 export function corsHeaders(request: Request): HeadersInit {
